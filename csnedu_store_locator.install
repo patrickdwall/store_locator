@@ -1,0 +1,39 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the Google Store Locator module.
+ */
+
+ /**
+  * Implements hook_requirements().
+  */
+function csnedu_store_locator_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+  if ($phase == 'runtime') {
+    drupal_load('module', 'libraries');
+
+    if (!is_dir(libraries_get_path('storelocator'))) {
+      // Verify that Google's Store Locator library is present.
+      $requirements['google_store_locator'] = array(
+        'title' => $t('Google Store Locator'),
+        'description' => $t(
+        'The required Google Store Locator library is missing.
+        The library can be found at <a href="@url">@url</a>. Please add it to
+        your library directory.',
+        array(
+          '@url' => 'http://code.google.com/p/storelocator/source/checkout')
+        ),
+        'severity' => REQUIREMENT_ERROR,
+      );
+    }
+    else {
+      $requirements['google_store_locator'] = array(
+        'title' => $t('Google Store Locator'),
+        'severity' => REQUIREMENT_OK,
+        'value' => $t('Google Store Locator library Installed'),
+      );
+    }
+  }
+  return $requirements;
+}

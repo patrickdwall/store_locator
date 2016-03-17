@@ -1,0 +1,207 @@
+<?php
+/**
+ * @file
+ * Code for the Google Store Locator feature.
+ */
+
+/**
+ * Implements hook_entity_view().
+ */
+function csnedu_store_locator_entity_view($entity, $type, $view_mode, $langcode) {
+  if ($view_mode == 'default' && $type == 'bean' && $entity->type == 'store_locator') {
+    $variables = array(
+      'data_cache_enabled' => FALSE,
+      'marker_path' => 'public://images/markers/map-pin.png',
+    );
+
+    if (!empty($entity->field_json_path[LANGUAGE_NONE][0]['url'])) {
+      $variables['data_path'] = $entity->field_json_path[LANGUAGE_NONE][0]['url'];
+    }
+
+    if (!empty($entity->field_map_zoom[LANGUAGE_NONE][0]['value'])) {
+      $variables['map_zoom'] = $entity->field_map_zoom[LANGUAGE_NONE][0]['value'];
+    }
+
+    if (!empty($entity->field_map_center[LANGUAGE_NONE][0]['lon'])) {
+      $variables['map_long'] = $entity->field_map_center[LANGUAGE_NONE][0]['lon'];
+    }
+
+    if (!empty($entity->field_map_center[LANGUAGE_NONE][0]['lat'])) {
+      $variables['map_lat'] = $entity->field_map_center[LANGUAGE_NONE][0]['lat'];
+    }
+
+    if (!empty($entity->field_overlay_image_sw[LANGUAGE_NONE][0]['lon'])) {
+      $variables['overlay_sw_lon'] = $entity->field_overlay_image_sw[LANGUAGE_NONE][0]['lon'];
+    }
+
+    if (!empty($entity->field_overlay_image_sw[LANGUAGE_NONE][0]['lat'])) {
+      $variables['overlay_sw_lat'] = $entity->field_overlay_image_sw[LANGUAGE_NONE][0]['lat'];
+    }
+
+    if (!empty($entity->field_overlay_image_ne[LANGUAGE_NONE][0]['lon'])) {
+      $variables['overlay_ne_lon'] = $entity->field_overlay_image_ne[LANGUAGE_NONE][0]['lon'];
+    }
+
+    if (!empty($entity->field_overlay_image_ne[LANGUAGE_NONE][0]['lat'])) {
+      $variables['overlay_ne_lat'] = $entity->field_overlay_image_ne[LANGUAGE_NONE][0]['lat'];
+    }
+
+    if (!empty($entity->field_overlay_image[LANGUAGE_NONE][0]['uri'])) {
+      $variables['overlay'] = file_create_url($entity->field_overlay_image[LANGUAGE_NONE][0]['uri']);
+    }
+
+    if (!empty($entity->field_filters[LANGUAGE_NONE])) {
+      foreach ($entity->field_filters[LANGUAGE_NONE] as $value) {
+        $term = taxonomy_term_load($value['tid']);
+        if (empty($term->tid)) {
+          continue;
+        }
+        $variables['feature_list'][$term->tid] = $term->name;
+      }
+    }
+
+    $entity->content['map'] = theme('csnedu_store_locator_contents', $variables);
+  }
+}
+
+/**
+ * Default implementation of the csnedu_store_locator_contents theme hook.
+ *
+ * Builds the renderable array that attaches all necessary js files to the head
+ * section of the page and generates the map and panel elements.
+ */
+function theme_csnedu_store_locator_contents($variables) {
+  $gsl_map_id = drupal_html_id('google-store-locator-map-container');
+
+  $settings = array(
+    'datapath' => $variables['data_path'],
+    'dataCacheEnabled' => $variables['data_cache_enabled'],
+    'mapzoom' => intval($variables['map_zoom']),
+    'mapcluster' => 0,
+    'mapclusterzoom' => 1000,
+    'mapclustergrid' => 1000,
+    'viewportManage' => FALSE,
+    'viewportMarkerLimit' => 1000,
+    'maplong' => $variables['map_long'],
+    'maplat' => $variables['map_lat'],
+    'search_label' => t('Search'),
+    'loc_search_zoom' => 4,
+    'empty_stores_msg' => t('There are no locations available.'),
+  );
+
+  if (!empty($variables['items_per_panel'])) {
+    $settings['items_per_panel'] = $variables['items_per_panel'];
+  }
+
+  if (!empty($variables['marker_path'])) {
+    $settings['marker_url'] = file_create_url($variables['marker_path']);
+  }
+
+  if (!empty($variables['feature_list'])) {
+    $settings['feature_list'] = $variables['feature_list'];
+  }
+
+  if (!empty($variables['overlay'])) {
+    $settings['overlay'] = $variables['overlay'];
+  }
+
+  if (!empty($variables['overlay_ne_lat'])) {
+    $settings['overlaynelat'] = $variables['overlay_ne_lat'];
+  }
+
+  if (!empty($variables['overlay_ne_lon'])) {
+    $settings['overlaynelon'] = $variables['overlay_ne_lon'];
+  }
+
+  if (!empty($variables['overlay_sw_lat'])) {
+    $settings['overlayswlat'] = $variables['overlay_sw_lat'];
+  }
+
+  if (!empty($variables['overlay_ne_lon'])) {
+    $settings['overlayswlon'] = $variables['overlay_sw_lon'];
+  }
+
+  $output = array(
+    'google_maps_api' => array(
+      '#attached' => array(
+        'js' => array('//maps.googleapis.com/maps/api/js?libraries=places' => array('type' => 'external')),
+      ),
+    ),
+    'compiled_js' => array(
+      '#attached' => array(
+        'js' => array(libraries_get_path('storelocator') . '/dist/store-locator.min.js'),
+      ),
+    ),
+    'build_js' => array(
+      '#attached' => array(
+        'js' => array(drupal_get_path('module', 'csnedu_store_locator') . '/js/csnedu_store_locator.js'),
+      ),
+    ),
+    'store_locator_sheet' => array(
+      '#attached' => array(
+        'css' => array(libraries_get_path('storelocator') . '/css/storelocator.css'),
+      ),
+    ),
+
+    'elements_sheet' => array(
+      '#attached' => array(
+        'css' => array(drupal_get_path('module', 'csnedu_store_locator') . '/theme/google_store_locator.css'),
+      ),
+    ),
+
+    'gsl_map_container' => array(
+      '#type' => 'markup',
+      '#prefix' => '<div id="' . $gsl_map_id . '" class="google-store-locator-map-container">',
+      'gsl_panel' => array(
+        '#markup' => '<div class="google-store-locator-panel"></div>',
+      ),
+      'gsl_map' => array(
+        '#markup' => '<div class="google-store-locator-map"></div>',
+      ),
+      '#suffix' => '</div>',
+    ),
+  );
+
+  drupal_add_js(array(
+    'gsl' => array(
+      $gsl_map_id => $settings,
+      'display_search_marker' => 0,
+      'max_zoom' => 19,
+    ),
+  ), 'setting');
+
+  return $output;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function csnedu_store_locator_theme() {
+  // Returns an associative array of theme hook information.
+  return array(
+  // The outer array keys are the names of the theme functions, and the values
+  // are arrays containing information about the hook.
+    'csnedu_store_locator_contents' => array(
+     // Keys=names of the variables passed to the themable function,
+     // value=default value of the variable if none is provided.
+      'variables' => array(
+        'data_path' => NULL,
+        'map_zoom' => NULL,
+        'map_cluster' => NULL,
+        'map_cluster_grid' => NULL,
+        'map_cluster_zoom' => NULL,
+        'viewport_manage' => NULL,
+        'viewport_marker_limit' => NULL,
+        'map_long' => NULL,
+        'map_lat' => NULL,
+        'items_per_panel' => NULL,
+        'loc_search_zoom' => NULL,
+        'loc_aware' => NULL,
+        'loc_aware_zoom' => NULL,
+        'search_label' => NULL,
+        'marker_path' => NULL,
+        'feature_list' => NULL,
+      ),
+    ),
+  );
+}
