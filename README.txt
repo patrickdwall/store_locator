@@ -1,3 +1,7 @@
+This is an altered version of the store locator module, to allow for display of store locators on beans, and allow custom overlay images, icons, etc.  You can see the original here:
+
+https://www.drupal.org/project/google_store_locator
+
 *******************************************************************************
                    DRUPAL MODULE
 *******************************************************************************
